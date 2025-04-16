@@ -8,9 +8,35 @@
         New Task
       </button>
       <SearchInput v-model="searchText" placeholder="Search" />
-      <button class="text-white px-4 py-2 rounded cursor-pointer">
-        <span class="pi pi-user"></span> Person
-      </button>
+      <div id="user-dropdown-container" class="relative inline-block">
+        <button
+          class="text-white bg-blue-600 px-4 py-2 rounded cursor-pointer flex items-center gap-2"
+          @click="toggleUserDropdown"
+        >
+          <span class="pi pi-user"></span> Person
+        </button>
+
+        <div
+          v-if="showUserDropdown"
+          class="absolute left-0 top-full z-10 mt-1 bg-white text-black rounded shadow-lg w-48 max-h-64 overflow-y-auto"
+        >
+          <div
+            v-for="user in availableDevelopers"
+            :key="user"
+            class="flex items-center px-3 py-2 hover:bg-gray-100"
+          >
+            <input
+              type="checkbox"
+              :id="user"
+              :value="user"
+              v-model="selectedUsers"
+              class="mr-2"
+            />
+            <label :for="user">{{ user }}</label>
+          </div>
+        </div>
+      </div>
+
       <button
         class="text-white px-4 py-2 rounded cursor-pointer"
         @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
@@ -310,6 +336,8 @@ const sortOrder = ref<"asc" | "desc">("asc");
 const selectAll = ref(false);
 const selectedTasks = ref<number[]>([]);
 const loading = ref<boolean>(false);
+const showUserDropdown = ref(false);
+const selectedUsers = ref<string[]>([]);
 
 watch(selectAll, (val) => {
   if (val) {
@@ -489,10 +517,27 @@ const setSortColumn = (column: string) => {
   }
 };
 
+const toggleUserDropdown = () => {
+  showUserDropdown.value = !showUserDropdown.value;
+};
+
 const filteredAndSortedTasks = computed(() => {
-  const filtered = tasks.value.filter((task) =>
-    task.title.toLowerCase().includes(searchText.value.toLowerCase())
-  );
+  const filtered = tasks.value.filter((task) => {
+    const matchTitle = task.title
+      .toLowerCase()
+      .includes(searchText.value.toLowerCase());
+
+    const matchUser =
+      selectedUsers.value.length === 0 ||
+      selectedUsers.value.some((user) =>
+        task.developer
+          .split(",")
+          .map((name) => name.trim())
+          .includes(user)
+      );
+
+    return matchTitle && matchUser;
+  });
 
   const sorted = [...filtered].sort((a, b) => {
     const valueA = a[selectedSortColumn.value];
@@ -505,10 +550,26 @@ const filteredAndSortedTasks = computed(() => {
     } else if (typeof valueA === "number" && typeof valueB === "number") {
       return sortOrder.value === "asc" ? valueA - valueB : valueB - valueA;
     }
+
     return 0;
   });
 
   return sorted;
+});
+
+const handleClickOutside = (event: MouseEvent) => {
+  const dropdown = document.getElementById("user-dropdown-container");
+  if (dropdown && !dropdown.contains(event.target as Node)) {
+    showUserDropdown.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleClickOutside);
 });
 </script>
 
