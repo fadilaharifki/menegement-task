@@ -61,6 +61,7 @@
           <!-- Drop area -->
           <div
             class="min-h-[500px] p-2"
+            :data-status="status.label"
             @dragover.prevent
             @drop="handleDrop(status.label)"
             :class="{
@@ -72,9 +73,16 @@
             <div
               v-for="task in getTasksByStatus(status.label)"
               :key="task.id"
-              class="bg-slate-700 rounded-lg p-4 mb-3 cursor-move"
+              class="bg-slate-700 rounded-lg p-4 mb-3 cursor-move touch-none"
               draggable="true"
-              @dragstart="handleDragStart(task.title)"
+              :data-task-id="task.uuid"
+              :class="{
+                dragging: draggedTaskId === task.uuid,
+              }"
+              @dragstart="handleDragStart(task.uuid)"
+              @touchstart="handleTouchStart(task.uuid, $event)"
+              @touchmove="handleTouchMove($event)"
+              @touchend="handleTouchEnd"
             >
               <h4
                 class="font-medium mb-2 truncate overflow-hidden"
@@ -291,21 +299,114 @@ const taskMap = computed(() => {
 
 const draggedTaskId = ref(null);
 const dragOverStatus = ref(null);
+const taskStartPosition = ref({ x: 0, y: 0 });
+const touchOffset = ref({ x: 0, y: 0 });
+const taskElement = ref(null);
+
+const handleTouchStart = (taskId: string, event) => {
+  draggedTaskId.value = taskId;
+
+  taskElement.value = document.querySelector(`[data-task-id="${taskId}"]`);
+  const touch = event.touches[0];
+
+  if (taskElement.value) {
+    const rect = taskElement.value.getBoundingClientRect();
+
+    const scrollX = window.scrollX || document.documentElement.scrollLeft;
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+
+    touchOffset.value = {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    };
+
+    taskStartPosition.value = {
+      x: rect.left + scrollX,
+      y: rect.top + scrollY,
+    };
+
+    taskElement.value.style.position = "fixed";
+    taskElement.value.style.zIndex = "999";
+    taskElement.value.style.width = "244";
+    taskElement.value.style.transition = "none";
+    taskElement.value.style.pointerEvents = "none";
+    taskElement.value.style.left = "10%";
+    taskElement.value.style.width = "244px";
+    taskElement.value.style.top = "35%";
+  }
+};
 
 const handleDragStart = (taskId: string) => {
   draggedTaskId.value = taskId;
 };
 
-const handleDrop = (newStatus) => {
+const handleTouchMove = (event) => {
+  const touch = event.touches[0];
+
+  const scrollX = window.scrollX || document.documentElement.scrollLeft;
+  const scrollY = window.scrollY || document.documentElement.scrollTop;
+
+  const x = touch.clientX + scrollX - touchOffset.value.x;
+  const y = touch.clientY + scrollY - touchOffset.value.y;
+
+  if (taskElement.value) {
+    taskElement.value.style.transform = `translate(${x}px, ${y}px)`;
+  }
+
+  taskElement.value.style.width = "244px";
+  taskElement.value.style.opacity = "0.8";
+  taskElement.value.style.left = "0";
+  taskElement.value.style.top = "0";
+
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  const dropZone = el?.closest("[data-status]");
+  if (dropZone) {
+    dragOverStatus.value = dropZone.getAttribute("data-status");
+  }
+};
+
+const handleTouchEnd = () => {
+  if (draggedTaskId.value && dragOverStatus.value) {
+    handleDrop(dragOverStatus.value);
+  }
+
+  if (taskElement.value) {
+    taskElement.value.style.transform = "";
+  }
+
+  taskElement.value.style.position = "";
+  taskElement.value.style.zIndex = "";
+  taskElement.value.style.left = "";
+  taskElement.value.style.top = "";
+  taskElement.value.style.transition = "";
+  taskElement.value.style.pointerEvents = "";
+  taskElement.value.style.width = "";
+  taskElement.value.style.opacity = "";
+  taskElement.value.style.transform = "";
+};
+
+const handleDrop = (newStatus: string) => {
   if (!draggedTaskId.value) return;
 
-  const task = taskStore.tasks.find((t) => t.title === draggedTaskId.value);
+  const task = taskStore.tasks.find((t) => t.uuid === draggedTaskId.value);
   if (task) {
     task.status = newStatus;
   }
 
   draggedTaskId.value = null;
   dragOverStatus.value = null;
+};
+
+const getTaskStyle = (taskId: string) => {
+  if (draggedTaskId.value === taskId) {
+    return {
+      position: "absolute",
+      zIndex: 9999,
+      pointerEvents: "none",
+      transition: "transform 0.1s ease",
+    };
+  }
+  return {};
 };
 
 const getTasksByStatus = (status) => {
