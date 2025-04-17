@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen text-white p-6">
+  <div class="min-h-screen text-white">
     <div class="flex items-center gap-4 pb-6">
       <button
         class="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer"
-        @click="addTaskFirst"
+        @click="toggleShowModal"
       >
         New Task
       </button>
@@ -60,7 +60,7 @@
 
           <!-- Drop area -->
           <div
-            class="min-h-[200px] p-2"
+            class="min-h-[500px] p-2"
             @dragover.prevent
             @drop="handleDrop(status.label)"
             :class="{
@@ -76,13 +76,24 @@
               draggable="true"
               @dragstart="handleDragStart(task.title)"
             >
-              <h4 class="font-medium mb-2">{{ task.title }}</h4>
+              <h4
+                class="font-medium mb-2 truncate overflow-hidden"
+                :title="task.title"
+              >
+                {{ task.title }}
+              </h4>
               <div class="flex flex-wrap gap-2 mb-2">
                 <span
                   class="px-2 py-1 rounded text-xs"
                   :class="getPriorityClass(task.priority)"
                 >
                   {{ task.priority }}
+                </span>
+                <span
+                  v-if="task.actualSP"
+                  class="px-2 py-1 rounded text-xs bg-slate-600"
+                >
+                  {{ task.actualSP }} SP
                 </span>
                 <span
                   v-if="task.estimatedSP"
@@ -99,10 +110,16 @@
               </div>
               <div class="flex items-center justify-between mt-4">
                 <div
-                  class="w-8 h-8 bg-slate-500 rounded-full flex items-center justify-center text-xs"
+                  class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-xs"
                 >
                   {{ task.developer.charAt(0) }}
                 </div>
+                <span
+                  v-if="task.dueDate"
+                  class="px-2 py-1 rounded text-xs bg-slate-600"
+                >
+                  {{ task.dueDate }}
+                </span>
               </div>
             </div>
           </div>
@@ -110,10 +127,13 @@
       </div>
     </div>
   </div>
+
+  <AddTaskModal v-model:visible="showModal" />
 </template>
 
 <script setup lang="ts">
 import SearchInput from "../components/SearchInput.vue";
+import AddTaskModal from "@/components/AddTaskModal.vue";
 import { Task } from "@/interface/TaskInterface";
 import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import axios from "axios";
@@ -123,7 +143,9 @@ import {
   getPriorityClass,
   getTypeClass,
 } from "@/utils/ClassFunction";
+import { useTaskStore } from "@/stores/task";
 
+const showModal = ref(false);
 const tasks = ref<Task[]>([]);
 const searchText = ref("");
 const selectedSortColumn = ref<string>("title");
@@ -132,8 +154,14 @@ const loading = ref<boolean>(false);
 const showUserDropdown = ref(false);
 const selectedUsers = ref<string[]>([]);
 
+const taskStore = useTaskStore();
+
+const toggleShowModal = () => {
+  showModal.value = !showModal.value;
+};
+
 const createNewTask = (): Task => ({
-  id: Date.now(),
+  uuid: "",
   title: "",
   avatar: false,
   developer: "",
@@ -145,25 +173,6 @@ const createNewTask = (): Task => ({
   isDropdownOpen: false,
   newDeveloper: "",
 });
-
-onMounted(async () => {
-  loading.value = true;
-  try {
-    tasks.value = await getTasks();
-  } catch (error) {
-    console.error("Failed fetch task:", error);
-  } finally {
-    loading.value = false;
-  }
-});
-
-const addTaskFirst = () => {
-  tasks.value.unshift(createNewTask());
-};
-
-const addTask = () => {
-  tasks.value.push(createNewTask());
-};
 
 const getDeveloperCount = (dev: string) => {
   if (!dev) return 0;
@@ -209,7 +218,7 @@ const toggleUserDropdown = () => {
 };
 
 const filteredAndSortedTasks = computed(() => {
-  const filtered = tasks.value.filter((task) => {
+  const filtered = taskStore.tasks.filter((task) => {
     const matchTitle = task.title
       .toLowerCase()
       .includes(searchText.value.toLowerCase());
@@ -272,7 +281,7 @@ const taskMap = computed(() => {
   const map = {};
 
   statusList.forEach((status) => {
-    map[status.label] = tasks.value.filter(
+    map[status.label] = taskStore.tasks.filter(
       (task) => task.status === status.label
     );
   });
@@ -290,7 +299,7 @@ const handleDragStart = (taskId: string) => {
 const handleDrop = (newStatus) => {
   if (!draggedTaskId.value) return;
 
-  const task = tasks.value.find((t) => t.title === draggedTaskId.value);
+  const task = taskStore.tasks.find((t) => t.title === draggedTaskId.value);
   if (task) {
     task.status = newStatus;
   }

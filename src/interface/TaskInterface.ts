@@ -1,5 +1,5 @@
 export interface Task {
-  id: number;
+  uuid: string;
   title: string;
   avatar: boolean;
   developer: string;

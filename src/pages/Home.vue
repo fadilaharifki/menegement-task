@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen text-white p-6">
+  <div class="min-h-screen text-white">
     <div class="flex items-center gap-4 pb-6">
       <button
         class="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer"
@@ -65,7 +65,7 @@
               Task
             </th>
             <th
-              class="w-32 flex justify-center items-center cursor-pointer px-4 py-2"
+              class="w-32 flex-1 justify-center items-center cursor-pointer px-4 py-2"
               :class="
                 selectedSortColumn === 'developer'
                   ? 'bg-blue-600 text-white'
@@ -141,7 +141,7 @@
             >
               Actual SP
             </th>
-            <th>+</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody class="bg-red-500">
@@ -225,6 +225,7 @@
                 v-model="task.status"
                 class="text-white text-xs rounded px-2 py-1 outline-none"
                 :class="getStatusClass(task.status)"
+                @change="handleStatusChange(task)"
               >
                 <option value=""></option>
                 <option value="Waiting for Review">Waiting for Review</option>
@@ -240,6 +241,7 @@
                 v-model="task.priority"
                 class="text-white text-xs rounded px-2 py-1 outline-none"
                 :class="getPriorityClass(task.priority)"
+                @change="handlePriorityChange(task)"
               >
                 <option value=""></option>
                 <option value="Critical">Critical</option>
@@ -254,6 +256,7 @@
                 v-model="task.type"
                 class="text-white text-xs rounded px-2 py-1 outline-none"
                 :class="getTypeClass(task.type)"
+                @change="handleTypeChange(task)"
               >
                 <option value=""></option>
                 <option value="Feature Enhancements">
@@ -294,7 +297,12 @@
                 class="bg-transparent border border-transparent focus:border-gray-600 rounded px-2 py-1 w-full text-white text-sm outline-none"
               />
             </td>
-            <td></td>
+            <td>
+              <span
+                @click="handelDelete(task)"
+                class="pi pi-trash cursor-pointer"
+              />
+            </td>
           </tr>
 
           <tr
@@ -312,8 +320,18 @@
         <tfoot>
           <tr class="text-gray-400">
             <td colspan="7"></td>
-            <td>{{ totalEstimatedSP }} SP <span class="text-xs">sum</span></td>
-            <td>{{ totalActualSP }} SP <span class="text-xs">sum</span></td>
+            <td>
+              <div class="flex flex-col justify-center items-center">
+                <span>{{ totalEstimatedSP }} SP </span>
+                <span class="text-xs">sum</span>
+              </div>
+            </td>
+            <td>
+              <div class="flex flex-col justify-center items-center">
+                <span>{{ totalActualSP }} SP </span>
+                <span class="text-xs">sum</span>
+              </div>
+            </td>
             <td></td>
           </tr>
         </tfoot>
@@ -328,36 +346,69 @@ import { Task } from "@/interface/TaskInterface";
 import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import axios from "axios";
 import { getTasks } from "@/api/taskApi";
+import { useTasksQuery } from "@/composables/useTasksQuery";
 import {
   getStatusClass,
   getPriorityClass,
   getTypeClass,
 } from "@/utils/ClassFunction";
 
-const tasks = ref<Task[]>([]);
+const toast = useToast();
 const searchText = ref("");
-const selectedSortColumn = ref<string>("title");
+const selectedSortColumn = ref<string>("developer");
 const sortOrder = ref<"asc" | "desc">("asc");
 const selectAll = ref(false);
 const selectedTasks = ref<number[]>([]);
 const loading = ref<boolean>(false);
 const showUserDropdown = ref(false);
 const selectedUsers = ref<string[]>([]);
+import { useTaskStore } from "@/stores/task";
+import { useToast } from "primevue/usetoast";
+
+const taskStore = useTaskStore();
+
+const handleStatusChange = (task: Task) => {
+  taskStore.updateTaskStatus(task.uuid, task.status);
+};
+
+const handlePriorityChange = (task: Task) => {
+  taskStore.updateTaskPriority(task.uuid, task.priority);
+};
+
+const handleTypeChange = (task: Task) => {
+  taskStore.updateTaskType(task.uuid, task.type);
+};
+
+const handelDelete = (task: Task) => {
+  taskStore.deleteTask(task.uuid);
+  toast.add({
+    severity: "success",
+    summary: "Success",
+    detail: "The task has been delete successfully!",
+    life: 3000,
+  });
+};
+
+onMounted(() => {
+  if (taskStore.tasks.length === 0) {
+    taskStore.fetchTask();
+  }
+});
 
 watch(selectAll, (val) => {
   if (val) {
-    selectedTasks.value = tasks.value.map((_, index) => index);
+    selectedTasks.value = taskStore.tasks.map((_, index) => index);
   } else {
     selectedTasks.value = [];
   }
 });
 
 watch(selectedTasks, (val) => {
-  selectAll.value = val.length === tasks.value.length;
+  selectAll.value = val.length === taskStore.tasks.length;
 });
 
 const createNewTask = (): Task => ({
-  id: Date.now(),
+  uuid: "",
   title: "",
   avatar: false,
   developer: "",
@@ -370,23 +421,12 @@ const createNewTask = (): Task => ({
   newDeveloper: "",
 });
 
-onMounted(async () => {
-  loading.value = true;
-  try {
-    tasks.value = await getTasks();
-  } catch (error) {
-    console.error("Failed fetch task:", error);
-  } finally {
-    loading.value = false;
-  }
-});
-
 const addTaskFirst = () => {
-  tasks.value.unshift(createNewTask());
+  taskStore.tasks.unshift(createNewTask());
 };
 
 const addTask = () => {
-  tasks.value.push(createNewTask());
+  taskStore.tasks.push(createNewTask());
 };
 
 const getDeveloperCount = (dev: string) => {
@@ -421,7 +461,7 @@ const getDisplaySP = (
 };
 
 const totalEstimatedSP = computed(() =>
-  tasks.value.reduce(
+  taskStore.tasks.reduce(
     (sum, task) =>
       typeof task.estimatedSP === "number" ? sum + task.estimatedSP : sum,
     0
@@ -429,7 +469,7 @@ const totalEstimatedSP = computed(() =>
 );
 
 const totalActualSP = computed(() =>
-  tasks.value.reduce(
+  taskStore.tasks.reduce(
     (sum, task) =>
       typeof task.actualSP === "number" ? sum + task.actualSP : sum,
     0
@@ -478,7 +518,7 @@ const toggleUserDropdown = () => {
 };
 
 const filteredAndSortedTasks = computed(() => {
-  const filtered = tasks.value.filter((task) => {
+  const filtered = taskStore.tasks.filter((task) => {
     const matchTitle = task.title
       .toLowerCase()
       .includes(searchText.value.toLowerCase());

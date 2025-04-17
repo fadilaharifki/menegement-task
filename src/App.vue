@@ -2,6 +2,9 @@
   <div>
     <router-view />
   </div>
+  <Toast />
 </template>
 
-<script setup></script>
+<script setup>
+import Toast from "primevue/toast";
+</script>
