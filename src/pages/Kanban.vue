@@ -285,18 +285,6 @@ const statusList = [
   { label: "Stuck", color: "bg-red-600" },
 ];
 
-const taskMap = computed(() => {
-  const map = {};
-
-  statusList.forEach((status) => {
-    map[status.label] = taskStore.tasks.filter(
-      (task) => task.status === status.label
-    );
-  });
-
-  return map;
-});
-
 const draggedTaskId = ref(null);
 const dragOverStatus = ref(null);
 const taskStartPosition = ref({ x: 0, y: 0 });
