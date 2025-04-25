@@ -14,7 +14,6 @@ export interface UseTaskActions {
   addTaskFirstData(): void;
   updateTaskStatus(taskUUID: string, newValue: string): void;
   updateTaskPriority(taskUUID: string, newValue: string): void;
-  updateTaskType(taskUUID: string, newValue: string): void;
   deleteTask(taskUUID: string): void;
   createTask(task: Task): void;
 }

@@ -1,16 +1,25 @@
+export const statusEnum = Object.freeze({
+  WAITING_FOR_REVIEW: "Waiting for Review",
+  IN_PROGRESS: "In Progress",
+  READY_TO_START: "Ready to Start",
+  PENDING_DEPLOY: "Pending Deploy",
+  DONE: "Done",
+  STUCK: "Stuck",
+});
+
 export const getStatusClass = (status: string) => {
   switch (status) {
-    case "Waiting for Review":
+    case "WAITING_FOR_REVIEW":
       return "bg-orange-600";
-    case "In Progress":
+    case "IN_PROGRESS":
       return "bg-yellow-600";
-    case "Ready to Start":
+    case "READY_TO_START":
       return "bg-green-600";
-    case "Pending Deploy":
+    case "PENDING_DEPLOY":
       return "bg-blue-600";
-    case "Done":
+    case "DONE":
       return "bg-gray-600";
-    case "Stuck":
+    case "STUCK":
       return "bg-red-600";
     default:
       return "bg-zinc-800";

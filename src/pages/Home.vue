@@ -228,12 +228,13 @@
                 @change="handleStatusChange(task)"
               >
                 <option value=""></option>
-                <option value="Waiting for Review">Waiting for Review</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Ready to Start">Ready to Start</option>
-                <option value="Pending Deploy">Pending Deploy</option>
-                <option value="Done">Done</option>
-                <option value="Stuck">Ready to Start</option>
+                <option
+                  v-for="status in masterStore.statuses"
+                  :key="status"
+                  :value="status"
+                >
+                  {{ statusEnum[status] }}
+                </option>
               </select>
             </td>
             <td>
@@ -350,6 +351,7 @@ import { useTasksQuery } from "@/composables/useTasksQuery";
 import {
   getStatusClass,
   getPriorityClass,
+  statusEnum,
   getTypeClass,
 } from "@/utils/ClassFunction";
 
@@ -363,9 +365,11 @@ const loading = ref<boolean>(false);
 const showUserDropdown = ref(false);
 const selectedUsers = ref<string[]>([]);
 import { useTaskStore } from "@/stores/task";
+import { useMasterStore } from "@/stores/master";
 import { useToast } from "primevue/usetoast";
 
 const taskStore = useTaskStore();
+const masterStore = useMasterStore();
 
 const handleStatusChange = (task: Task) => {
   taskStore.updateTaskStatus(task.uuid, task.status);
@@ -390,6 +394,7 @@ const handelDelete = (task: Task) => {
 };
 
 onMounted(() => {
+  masterStore.getStatuses();
   if (taskStore.tasks.length === 0) {
     taskStore.fetchTask();
   }

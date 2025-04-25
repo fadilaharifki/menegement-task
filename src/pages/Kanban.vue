@@ -48,13 +48,17 @@
     <div>
       <div class="flex gap-4 overflow-x-auto whitespace-nowrap pb-2">
         <div
-          v-for="status in statusList"
-          :key="status.label"
+          v-for="status in masterStore.statuses"
+          :key="status"
           class="bg-slate-800 rounded-lg w-[260px] flex-none overflow-hidden"
         >
-          <div :class="`${status.color} p-4 flex items-center justify-between`">
+          <div
+            :class="`${getStatusClass(
+              status
+            )} p-4 flex items-center justify-between`"
+          >
             <h3 class="font-medium">
-              {{ status.label }} ({{ getTasksByStatus(status.label).length }})
+              {{ statusEnum[status] }} ({{ getTasksByStatus(status).length }})
             </h3>
           </div>
 
@@ -150,8 +154,10 @@ import {
   getStatusClass,
   getPriorityClass,
   getTypeClass,
+  statusEnum,
 } from "@/utils/ClassFunction";
 import { useTaskStore } from "@/stores/task";
+import { useMasterStore } from "@/stores/master";
 
 const showModal = ref(false);
 const tasks = ref<Task[]>([]);
@@ -163,6 +169,7 @@ const showUserDropdown = ref(false);
 const selectedUsers = ref<string[]>([]);
 
 const taskStore = useTaskStore();
+const masterStore = useMasterStore();
 
 const toggleShowModal = () => {
   showModal.value = !showModal.value;
